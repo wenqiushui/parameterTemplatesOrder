@@ -1,0 +1,66 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Ant Design 样式覆盖 */
+.ant-layout-header {
+  line-height: 64px;
+}
+
+.ant-menu-horizontal {
+  border-bottom: none;
+}
+
+.ant-menu-item a {
+  color: inherit;
+}
+
+/* 自定义组件样式 */
+.viewer-container {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.selector-label {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.materials-grid .ant-card-body {
+  padding: 8px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .configurator {
+    flex-direction: column;
+  }
+  
+  .configurator-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .product-overview {
+    flex-direction: column;
+  }
+  
+  .product-info {
+    width: 100% !important;
+  }
+}

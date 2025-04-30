@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 用户表
+model User {
+  id        String   @id @default(uuid())
+  username  String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  models    Model[]
+  configs   ModelConfig[]
+  orders    Order[]
+  textureFavorites TextureFavorite[]
+}
+
+// 模板表
+model Template {
+  id              String   @id
+  name            String
+  description     String?
+  parameterSchema String
+  isExternal      Boolean  @default(false)
+  serviceUrl      String?
+  previewHash     String?
+  createdAt       DateTime @default(now())
+
+  models          Model[]
+  modelInstances  ModelInstance[]
+}
+
+// 模型表
+model Model {
+  id          String   @id @default(uuid())
+  userId      String
+  templateId  String
+  name        String
+  paramsHash  String
+  params      String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  template    Template @relation(fields: [templateId], references: [id])
+  configs     ModelConfig[]
+}
+
+// 模型实例表（缓存）
+model ModelInstance {
+  id          String   @id @default(uuid())
+  templateId  String
+  paramsHash  String   @unique
+  params      String
+  contentHash String
+
+  template    Template @relation(fields: [templateId], references: [id])
+}
+
+// 模型缓存表
+model ModelCache {
+  paramsHash    String   @id
+  templateId    String
+  contentHash   String
+  lastAccessed  DateTime @default(now())
+}
+
+// 模型配置表
+model ModelConfig {
+  id                String   @id @default(uuid())
+  modelId           String
+  userId            String
+  name              String
+  materialOverrides String
+  thumbnailHash     String?
+  sceneId           String?   // 新增场景关联
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  model             Model    @relation(fields: [modelId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+  scene             Scene?   @relation(fields: [sceneId], references: [id])
+  orderItems        OrderItem[]
+  materialApplications MaterialApplication[]
+}
+
+// 环境贴图模型
+model EnvironmentMap {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  contentHash     String    @unique  // 原始 HDR 文件的内容哈希
+  thumbnail       String    // 缩略图内容哈希
+  format          String    // hdr, exr 等
+  type            String    // equirectangular, cubemap
+  intensity       Float     @default(1.0)
+  size            Int       // 文件大小（字节）
+  resolution      Int       // 分辨率（像素）
+  isPreset        Boolean   @default(false)
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 预处理的立方体贴图哈希
+  processedCubemap String?
+
+  // 关联
+  scenes          Scene[]   // 使用此环境贴图的场景
+}
+
+// 场景模型
+model Scene {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  environmentMapId String?
+  environmentMap  EnvironmentMap? @relation(fields: [environmentMapId], references: [id])
+  backgroundType  String    @default("color") // color, environment, gradient
+  backgroundColor String    @default("#f0f0f0")
+  exposure        Float     @default(1.0)
+  toneMapping     String    @default("ACESFilmic") // ACESFilmic, Linear, Reinhard, etc.
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 关联
+  configurations  ModelConfig[]
+}
+
+// 材质表
+model Material {
+  id              String    @id @default(uuid())
+  name            String
+  type            String    // standard, metal, etc.
+  category        String    // metal, wood, plastic, etc.
+  isPreset        Boolean   @default(false)
+  createdBy       String
+  baseProperties  String    // JSON
+  maps            String?   // JSON
+  mapSettings     String?   // JSON
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 关联
+  applications    MaterialApplication[]
+}
+
+// 资源表
+model Resource {
+  hash           String   @id
+  type           String
+  name           String?
+  metadata       String?
+  userId         String?
+  referenceCount Int      @default(1)
+  createdAt      DateTime @default(now())
+}
+
+// 贴图模型
+model Texture {
+  id              String    @id @default(uuid())
+  contentHash     String    @unique
+  name            String
+  description     String?
+  type            String    // baseColor, normal, roughness, etc.
+  category        String    // fabric, wood, metal, stone, etc.
+  width           Int
+  height          Int
+  format          String    // jpg, png, etc.
+  size            Int
+  thumbnail       String    // 缩略图内容哈希
+  isPublic        Boolean   @default(false)  // 是否公开可用
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 关联
+  tags            TextureTag[]
+  favorites       TextureFavorite[]
+}
+
+// 贴图标签模型
+model TextureTag {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  description     String?
+  createdAt       DateTime  @default(now())
+
+  // 关联
+  textures        Texture[]
+}
+
+// 贴图收藏模型
+model TextureFavorite {
+  id              String    @id @default(uuid())
+  userId          String
+  textureId       String
+  createdAt       DateTime  @default(now())
+
+  // 关联
+  user            User      @relation(fields: [userId], references: [id])
+  texture         Texture   @relation(fields: [textureId], references: [id])
+
+  // 唯一约束
+  @@unique([userId, textureId])
+}
+
+// 材质应用记录
+model MaterialApplication {
+  id              String    @id @default(uuid())
+  configId        String
+  nodeId          String
+  materialId      String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 关联
+  config          ModelConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  material        Material    @relation(fields: [materialId], references: [id])
+
+  // 唯一约束
+  @@unique([configId, nodeId])
+}
+
+// 订单表
+model Order {
+  id         String      @id @default(uuid())
+  userId     String
+  status     String
+  totalPrice Float
+  createdAt  DateTime    @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  items      OrderItem[]
+}
+
+// 订单项表
+model OrderItem {
+  id        String      @id @default(uuid())
+  orderId   String
+  configId  String
+  quantity  Int
+  price     Float
+
+  order     Order       @relation(fields: [orderId], references: [id])
+  config    ModelConfig @relation(fields: [configId], references: [id])
+}
